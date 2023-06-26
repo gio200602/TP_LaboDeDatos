@@ -1,0 +1,16 @@
+holi=sql^"""SELECT DISTINCT rubro, 
+            CASE WHEN rubro = 'AGRICULTURA'
+                THEN '1'
+                ELSE '999'
+                END AS clae_2
+            FROM padron"""
+print(holi)
+holi.to_csv('rubro_clae.csv', index = False)
+rubro_clae = pd.read_csv ('rubro_clae.csv')
+rubro_clae.loc[rubro_clae["rubro"] == "GANADERIA", "clae_2"] = 1
+rubro_clae.loc[rubro_clae["rubro"] == "FRUTICULTURA/HORTICULTURA", "clae_2"] = 1
+rubro_clae.loc[rubro_clae["rubro"] == "FRUTICULTURA", "clae_2"] = 1
+rubro_clae.loc[rubro_clae["rubro"] == "APICULTURA", "clae_2"] = 1
+rubro_clae.loc[rubro_clae["rubro"] == "HORTICULTURA", "clae_2"] = 1
+rubro_clae.loc[rubro_clae["rubro"] == "AGRICULTURA/GANADERIA", "clae_2"] = 1
+rubro_clae.loc[rubro_clae["rubro"] == "ACUICULTURA", "clae_2"] = 3
