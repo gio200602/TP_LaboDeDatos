@@ -6,13 +6,40 @@ import seaborn as sns
 
 
 #%%
-localidades = pd.read_csv('/home/axel/Documentos/LaboDeDatos/Tp1/localidades-censales.csv')
-clae2 = pd.read_csv("/home/axel/Documentos/LaboDeDatos/Tp1/Entrega/diccionario_clae2.csv")
-cod_departamento = pd.read_csv("/home/axel/Documentos/LaboDeDatos/Tp1/Entrega/diccionario_cod_depto.csv")
-median = pd.read_csv("/home/axel/Documentos/LaboDeDatos/Tp1/Entrega/w_median_depto_priv_clae2(1).csv")
-padron = pd.read_csv("/home/axel/Documentos/LaboDeDatos/Tp1/padron-de-operadores-organicos-certificados.csv", encoding="windows-1252")
+localidades = pd.read_csv('/home/clinux01/Descargas/localidades-censales.csv')
+clae2 = pd.read_csv("/home/clinux01/Descargas/diccionario_clae2.csv")
+cod_departamento = pd.read_csv("/home/clinux01/Descargas/diccionario_cod_depto.csv")
+median = pd.read_csv("/home/clinux01/Descargas/w_median_depto_priv_clae2.csv")
+padron = pd.read_csv("//home/clinux01/Descargas/padron-de-operadores-organicos-certificados.csv", encoding="windows-1252")
 
-""" Elimininamos NULLs y columnas que vamos a trasladar a otras tablas """
+codigos_distintos = sql^"""SELECT *
+                 FROM cod_departamento
+                 INNER JOIN localidades
+                 ON id_provincia_indec = provincia_id AND
+                 nombre_departamento_indec = departamento_nombre
+                 WHERE codigo_departamento_indec != departamento_id """
+nombres_distintos = sql^"""SELECT *
+                 FROM cod_departamento
+                 INNER JOIN localidades
+                 ON id_provincia_indec = provincia_id AND
+                 codigo_departamento_indec = departamento_id
+                 WHERE nombre_departamento_indec != departamento_nombre """
+
+nombres_a_cambiar = {'Chascomús/Lezama':'Chascomús' ,'Ezeiza' : 'José M. Ezeiza', 'General San Martín' : 'Ciudad Libertador San Martín',
+'General Juan Facundo Quiroga': 'General Juan F. Quiroga',
+'Ángel Vicente Peñaloza': 'General Ángel V. Peñaloza',
+'Constitución': 'Villa Constitución',
+'Juan Felipe Ibarra': 'Juan F. Ibarra',
+'Ezeiza': 'José M. Ezeiza' }
+
+cod_departamento.loc[:,["nombre_departamento_indec"]] = cod_departamento.nombre_departamento_indec.replace(nombres_a_cambiar) 
+cod_departamento.loc[:,["codigo_departamento_indec"]] = cod_departamento.codigo_departamento_indec.replace({94014 : 94015}) 
+
+provincias = sql ^ """
+                 SELECT DISTINCT id_provincia_indec AS prov_id, nombre_provincia_indec AS prov_nombre
+                 FROM cod_departamento
+                 ORDER BY prov_id
+                """
 #--------------------------------------------------------------
 #Eliminamos primero las columnas "función" y "fuente" que no aportan nada:
 localidades = localidades.drop(['funcion'], axis = 1) 
@@ -29,7 +56,6 @@ localidades = sql^"""SELECT categoria,centroide_lat,centroide_lon,departamento_i
                             municipio_id, UPPER(municipio_nombre) AS municipio_nombre,
                             localidad_id, UPPER(localidad_nombre) AS localidad_nombre, 
                             FROM localidades """
-
 #Eliminamos las tildes de los departamentos para unificar los valores con las demás tablas
 localidades = sql^"""SELECT categoria,centroide_lat,centroide_lon,departamento_id, 
                             REPLACE(departamento_nombre,'Á','A') AS departamento_nombre,municipio_id,
@@ -53,14 +79,25 @@ localidades = sql^"""SELECT categoria,centroide_lat,centroide_lon,departamento_i
                             FROM localidades"""   
 
 #--------------------------------------------------------------
-municipios = sql^"""SELECT DISTINCT municipio_id, municipio_nombre, departamento_id
-                    FROM localidades"""                     
+municipios = sql^"""SELECT municipio_id, municipio_nombre, departamento_id
+                    FROM localidades"""  
+localidades = sql^"""SELECT categoria,centroide_lat,centroide_lon,departamento_id, 
+                            REPLACE(departamento_nombre,'Á','A') AS departamento_nombre,municipio_id,
+                            municipio_nombre, localidad_id,localidad_nombre
+                            FROM localidades"""
 #--------------------------------------------------------------                            
 
 municipios.to_csv('municipios.csv')
-localidades = sql^ """ SELECT centroide_lat, centroide_lon, municipio_id,
-                                localidad_id, localidad_nombre
-                                FROM localidades"""
+municipios = sql^ """ SELECT municipio_id, REPLACE(municipio_nombre,'Á','A') AS municipio_nombre, departamento_id
+                                FROM municipios"""
+municipios = sql^ """ SELECT municipio_id, REPLACE(municipio_nombre,'É','E') AS municipio_nombre, departamento_id
+                                FROM municipios"""
+municipios = sql^ """ SELECT municipio_id, REPLACE(municipio_nombre,'Í','I') AS municipio_nombre, departamento_id
+                                FROM municipios"""
+municipios = sql^ """ SELECT municipio_id, REPLACE(municipio_nombre,'Ó','O') AS municipio_nombre, departamento_id
+                                FROM municipios"""
+municipios = sql^ """ SELECT municipio_id, REPLACE(municipio_nombre,'Ú','U') AS municipio_nombre, departamento_id
+                                FROM municipios"""
 localidades.to_csv('localidades.csv')
 
 #%%
@@ -99,23 +136,6 @@ departamentos.to_csv('departamentos.csv', index = False)
 
 #%%
 
-codigos_distintos = sql^"""SELECT *
-                 FROM cod_departamento
-                 INNER JOIN localidades
-                 ON id_provincia_indec = provincia_id AND
-                 nombre_departamento_indec = departamento_nombre
-                 WHERE codigo_departamento_indec != departamento_id """
-nombres_distintos = sql^"""SELECT *
-                 FROM cod_departamento
-                 INNER JOIN localidades
-                 ON id_provincia_indec = provincia_id AND
-                 codigo_departamento_indec = departamento_id
-                 WHERE nombre_departamento_indec != departamento_nombre """
-
-cod_departamento = sql^""" SELECT a.departamento_id AS codigo_departamento, a.departamento_nombre
-                       AS nombre_departamento, b.id_provincia_indec, 
-                       b.nombre_provincia_indec
-                       FROM cod_departamento AS b, localidades AS a """
                 
 prov_deptos = sql^"""SELECT * FROM provincias
                             INNER JOIN departamentos
@@ -174,7 +194,7 @@ productos= productos.explode("productos").reset_index(drop=True)
 productos["productos"]=productos["productos"].str.split("+")
 productos= productos.explode("productos").reset_index(drop=True)
 padron=padron.drop(['productos'], axis = 1)
-padron=padron.drop(['establecimiento'], axis = 1)
+
 
 
 
@@ -182,7 +202,7 @@ padron=padron.drop(['establecimiento'], axis = 1)
 padron = sql^"""
                     SELECT DISTINCT provincia_id AS prov_id, 
                     departamento,REPLACE(rubro, 'AGICULTURA', 'AGRICULTURA') as rubro,
-                                    categoria_id,Certificadora_id,razon_social
+                                    categoria_id,Certificadora_id,razon_social,establecimiento
                     FROM padron
                     ORDER BY departamento,rubro,categoria_id,Certificadora_id,razon_social
                     """ 
@@ -193,30 +213,30 @@ departamentos, localidades y municipios, y en caso de que haya localidades y mun
 por sus correspondientes departamentos"""
 
 son_departamentos = sql^""" SELECT padron.prov_id, departamento, rubro, categoria_id,
-                            Certificadora_id, razon_social     
+                            Certificadora_id, razon_social,establecimiento
                             FROM padron
                             INNER JOIN departamentos
                             ON departamento = departamentos.departamento_nombre AND
                             departamentos.prov_id = padron.prov_id """
-padron_sin_deptos = sql^"""SELECT * FROM padron
+padron_sin_departamentos = sql^"""SELECT * FROM padron
                             EXCEPT
                             SELECT * FROM son_departamentos """
 
 
                                             
-son_municipios = sql^ """ SELECT padron_sin_deptos.prov_id, departamento, rubro, categoria_id,
-                            Certificadora_id, razon_social     
-                            FROM padron_sin_deptos
+son_municipios = sql^ """ SELECT padron_sin_departamentos.prov_id, departamento, rubro, categoria_id,
+                            Certificadora_id, razon_social,establecimiento
+                            FROM padron_sin_departamentos
                             INNER JOIN ubicaciones_completo
                             ON departamento = ubicaciones_completo.municipio_nombre AND 
-                            padron_sin_deptos.prov_id = ubicaciones_completo.prov_id
+                            padron_sin_departamentos.prov_id = ubicaciones_completo.prov_id
                             """ 
-padron_sin_municipios =  sql^"""SELECT * FROM padron_sin_deptos
+padron_sin_municipios =  sql^"""SELECT * FROM padron_sin_departamentos
                             EXCEPT
                             SELECT * FROM son_municipios """
 son_localidades = sql^ """ SELECT padron_sin_municipios.prov_id, departamento, 
                             rubro, categoria_id,
-                            Certificadora_id, razon_social     
+                            Certificadora_id, razon_social,establecimiento
                             FROM padron_sin_municipios
                             INNER JOIN ubicaciones_completo
                             ON departamento = ubicaciones_completo.localidad_nombre AND 
@@ -232,14 +252,14 @@ padron_final_1 = sql^"""SELECT *
                 INNER JOIN localidades
                 ON departamento = localidades.localidad_nombre"""
 padron_final_1 = sql^"""SELECT prov_id, departamento, rubro,
-                categoria_id, Certificadora_id, razon_social
+                categoria_id, Certificadora_id, razon_social,establecimiento
                 FROM padron_final_1"""
 padron_final_2 = sql^"""SELECT *
                 FROM padron_sin_departamentos
                 INNER JOIN municipios
                 ON departamento = municipios.municipio_nombre"""
 padron_final_2 = sql^"""SELECT prov_id, departamento, rubro,
-                categoria_id, Certificadora_id, razon_social
+                categoria_id, Certificadora_id, razon_social,establecimiento
                 FROM padron_final_2"""                
 padron = sql^"""SELECT * FROM padron_final_1
                       UNION
@@ -279,11 +299,7 @@ clae2 = sql ^ """ SELECT clae2 AS rubro_id, CASE WHEN letra IS NULL THEN 'Z' ELS
 #Hacemos lo mismo con 'id_provincia_indec' y 'nombre_provincia_indec' renombrandolos como
 # 'prov_id' y 'prov_nombre' respectivamente
 
-provincias = sql ^ """
-                 SELECT DISTINCT id_provincia_indec AS prov_id, nombre_provincia_indec AS prov_nombre
-                 FROM cod_departamento
-                 ORDER BY prov_id
-                """
+
 
 
 """La misma idea la aplicamos con departamentos, renombrando codigo_departamento_indec como departamento_id y
@@ -558,7 +574,12 @@ plt.axvline(nac_tot['promedio_nacional'].mean()+nac_tot['promedio_nacional'].std
 
 plt.axvline(nac_tot['promedio_nacional'].mean()-nac_tot['promedio_nacional'].std(), color='black' , linestyle='-.')
 
-plt.show()
+plt.show()'General San Martín'] = 'Ciudad Libertador San Martín'
+'General Juan Facundo Quiroga'] = 'General Juan F. Quiroga'
+'Ángel Vicente Peñaloza'] = 'General Ángel V. Peñaloza'
+'Constitución'] = 'Villa Constitución'
+'Juan Felipe Ibarra'] = 'Juan F. Ibarra'
+'Ezeiza'] = 'José M. Ezeiza'
 
 plt.close()
 
